@@ -1,0 +1,16 @@
+{
+  "name": "zaloupe",
+  "module": "index.ts",
+  "type": "module",
+  "private": true,
+  "devDependencies": {
+    "@types/bun": "latest"
+  },
+  "peerDependencies": {
+    "typescript": "^5"
+  },
+  "dependencies": {
+    "bullmq": "^5.56.9",
+    "ioredis": "^5.7.0"
+  }
+}
