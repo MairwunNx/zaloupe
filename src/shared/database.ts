@@ -30,6 +30,21 @@ export async function withTransaction<A>(fn: (trx: typeof db) => Promise<A>): Pr
 
 export type ChatType = "private" | "group" | "supergroup" | "channel";
 
+export interface GlobalStats {
+  messages: number;
+  searches: number;
+}
+
+export interface ChatStats {
+  messages: number;
+  searches: number;
+}
+
+export interface UserStats {
+  messages: number;
+  searches: number;
+}
+
 export interface Chat {
   chat_id: bigint;
   chat_type: ChatType;
@@ -93,5 +108,41 @@ export const EventRepo = {
     await exec`
       INSERT INTO events (id, event_type, chat_id, user_id)
       VALUES (${e.id}, ${e.event_type}, ${e.chat_id}, ${e.user_id ?? null})`;
+  }
+};
+
+export const StatsRepo = {
+  async getStats(
+    chatId?: bigint,
+    userId?: bigint,
+    scopeInChat = true
+  ): Promise<{ global: GlobalStats; chat: ChatStats; user: UserStats }> {
+    const row = await one<{
+      global_msgs: number;
+      global_srch: number;
+      chat_msgs: number;
+      chat_srch: number;
+      user_msgs: number;
+      user_srch: number;
+    }>`
+       SELECT
+            SUM((event_type = 'index')::int)                                  AS global_msgs,
+            SUM((event_type = 'search')::int)                                 AS global_srch,
+            SUM((event_type = 'index')::int)  FILTER (WHERE chat_id = ${chatId ?? null}) AS chat_msgs,
+            SUM((event_type = 'search')::int) FILTER (WHERE chat_id = ${chatId ?? null}) AS chat_srch,
+            SUM((event_type = 'index')::int)
+                FILTER (WHERE user_id = ${userId ?? null}
+                        AND ( ${scopeInChat} = false OR chat_id = ${chatId ?? null} ))    AS user_msgs,
+            SUM((event_type = 'search')::int)
+                FILTER (WHERE user_id = ${userId ?? null}
+                        AND ( ${scopeInChat} = false OR chat_id = ${chatId ?? null} ))    AS user_srch
+          FROM events
+        `;
+
+    const g: GlobalStats = { messages: row?.global_msgs ?? 0, searches: row?.global_srch ?? 0 };
+    const c: ChatStats = { messages: row?.chat_msgs ?? 0, searches: row?.chat_srch ?? 0 };
+    const u: UserStats = { messages: row?.user_msgs ?? 0, searches: row?.user_srch ?? 0 };
+
+    return { global: g, chat: c, user: u };
   }
 };
