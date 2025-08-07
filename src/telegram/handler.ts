@@ -4,7 +4,7 @@ import { Context, InlineKeyboard } from "grammy";
 import {
   ChatRepo,
   UserRepo,
-  query
+  StatsRepo
 } from "../shared/database";
 import {
   MSG_START_GROUP,
@@ -28,9 +28,9 @@ const C = {
   PURGE_ME: "purge_me"
 } as const;
 
-const kbAccept   = new InlineKeyboard().text("Принять условия", C.ACCEPT);
+const kbAccept = new InlineKeyboard().text("Принять условия", C.ACCEPT);
 const kbPurgeAll = new InlineKeyboard().text("Удалить все сообщения группы", C.PURGE_CHAT);
-const kbPurgeMe  = new InlineKeyboard().text("Удалить мои сообщения", C.PURGE_ME);
+const kbPurgeMe = new InlineKeyboard().text("Удалить мои сообщения", C.PURGE_ME);
 const kbNotation = (priv: boolean) =>
   new InlineKeyboard()
     .text("Расторгнуть соглашение", C.REVOKE_CHAT)
@@ -134,19 +134,16 @@ export async function onStats(ctx: Context) {
   if (!chatId || !userId) return;
 
   try {
-    const global = await query<{ msgs: number; srch: number }>`
-      SELECT sum((event_type='index')::int) msgs, sum((event_type='search')::int) srch FROM events`;
-    const chat = await query<{ msgs: number; srch: number }>`
-      SELECT sum((event_type='index')::int) msgs, sum((event_type='search')::int) srch FROM events WHERE chat_id = ${BigInt(chatId)}`;
+    const { global, chat, user } = await StatsRepo.getStats(BigInt(chatId), BigInt(userId), true);
 
     await ctx.reply(
       MSG_STATS(
-        global[0]?.msgs ?? 0,
-        global[0]?.srch ?? 0,
-        chat[0]?.msgs ?? 0,
-        chat[0]?.srch ?? 0,
-        0,
-        0
+        global.messages,
+        global.searches,
+        chat.messages,
+        chat.searches,
+        user.messages,
+        user.searches
       ),
       { parse_mode: "Markdown" }
     );
