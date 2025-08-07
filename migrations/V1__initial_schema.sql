@@ -1,36 +1,35 @@
+CREATE TYPE chat_type_enum AS ENUM ('private','group','supergroup','channel');
+CREATE TYPE event_type_enum AS ENUM ('index','search');
 CREATE TABLE chats (
-    chat_id BIGINT PRIMARY KEY,
-    type VARCHAR(20) NOT NULL,
-    is_active BOOLEAN DEFAULT FALSE,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    accepted_at TIMESTAMP,
-    messages_count INTEGER DEFAULT 0,
-    searches_count INTEGER DEFAULT 0
+  chat_id     BIGINT PRIMARY KEY,
+  chat_type   chat_type_enum NOT NULL,
+  accepted_at TIMESTAMPTZ,
+  revoked_at  TIMESTAMPTZ
 );
-
-CREATE INDEX idx_chats_is_active ON chats(is_active);
-CREATE INDEX idx_chats_type ON chats(type);
 
 CREATE TABLE users (
-    user_id BIGINT PRIMARY KEY,
-    username VARCHAR(255),
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  user_id     BIGINT PRIMARY KEY,
+  username    TEXT
 );
-
-CREATE INDEX idx_users_username ON users(username);
 
 CREATE TABLE user_chat_settings (
-    user_id BIGINT,
-    chat_id BIGINT,
-    allow_collect BOOLEAN DEFAULT TRUE,
-    revoked_at TIMESTAMP,
-    messages_count INTEGER DEFAULT 0,
-    searches_count INTEGER DEFAULT 0,
-    PRIMARY KEY (user_id, chat_id),
-    FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE,
-    FOREIGN KEY (chat_id) REFERENCES chats(chat_id) ON DELETE CASCADE
+  user_id     BIGINT REFERENCES users(user_id) ON DELETE CASCADE,
+  chat_id     BIGINT REFERENCES chats(chat_id) ON DELETE CASCADE,
+  allow_collect BOOLEAN DEFAULT TRUE,
+  revoked_at  TIMESTAMPTZ,
+  PRIMARY KEY (user_id, chat_id)
 );
 
-CREATE INDEX idx_user_chat_settings_user_id ON user_chat_settings(user_id);
-CREATE INDEX idx_user_chat_settings_chat_id ON user_chat_settings(chat_id);
-CREATE INDEX idx_user_chat_settings_allow_collect ON user_chat_settings(allow_collect);
+CREATE TABLE events (
+  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  event_type  event_type_enum NOT NULL,
+  user_id     BIGINT REFERENCES users(user_id) ON DELETE SET NULL,
+  chat_id     BIGINT REFERENCES chats(chat_id) ON DELETE CASCADE,
+  message_id  BIGINT,
+  latency_ms  INT,
+  ts          TIMESTAMPTZ DEFAULT now()
+);
+
+CREATE INDEX idx_events_chat_ts ON events(chat_id, ts DESC);
+CREATE INDEX idx_events_user_ts ON events(user_id, ts DESC);
+CREATE INDEX idx_events_type_ts ON events(event_type, ts DESC);
