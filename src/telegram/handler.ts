@@ -17,6 +17,7 @@ import {
   MSG_SEARCH_NO_RESULTS,
   MSG_SEARCH_USAGE,
   MSG_SHOW_FULL_BUTTON,
+  MSG_PAGINATION_LABEL,
 } from "./messages";
 import { logError } from "../shared/logging";
 import { indexMessage, searchMessages, ensureIndex } from "../features/search/search.service";
@@ -208,7 +209,10 @@ export async function onSearch(ctx: Context) {
     await ctx.reply(MSG_SEARCH_USAGE);
     return;
   }
-  const res = await searchMessages({ chatId: BigInt(chatId), query, limit: 5 });
+  const pageSize = 12;
+  const page = 1;
+  const offset = 0;
+  const res = await searchMessages({ chatId: BigInt(chatId), query, limit: pageSize, offset });
   try {
     await EventRepo.insert({ id: crypto.randomUUID(), event_type: "search", chat_id: BigInt(chatId), user_id: ctx.from ? BigInt(ctx.from.id) : null });
   } catch {}
@@ -217,29 +221,82 @@ export async function onSearch(ctx: Context) {
     await ctx.reply(MSG_SEARCH_NO_RESULTS(query));
     return;
   }
+  const pages = Math.max(1, Math.ceil(res.total / pageSize));
 
-  await ctx.reply(MSG_SEARCH_HEADER(query, res.total));
-
+  const header = MSG_SEARCH_HEADER(query, res.total);
+  const lines: string[] = [];
   for (const hit of res.hits) {
     const full = hit.doc.text ?? "";
-    const snippet = makeSnippet(full, query);
-    const [chat_id, message_id_str] = hit.id.split(":");
-    const kb = new InlineKeyboard().text(MSG_SHOW_FULL_BUTTON, `show:${chat_id}:${message_id_str}`);
-    await ctx.reply(snippet || full.slice(0, 200), { reply_markup: kb });
+    const snippet = makeSnippet(full, query).replace(/\n/g, " ");
+    lines.push(snippet || full.slice(0, 200));
   }
+  const body = lines.map((s) => `${s}\n[${MSG_SHOW_FULL_BUTTON}]`).join("\n\n");
+  const text = `${header}\n\n${body}`.slice(0, 4000);
+
+  const kb = new InlineKeyboard();
+  for (const hit of res.hits) {
+    const [chat_id, message_id_str] = hit.id.split(":");
+    kb.text(MSG_SHOW_FULL_BUTTON, `show:${chat_id}:${message_id_str}`).row();
+  }
+  kb.text("<-", `pg:${encodeURIComponent(query)}:${pageSize}:${page - 1}`).text(MSG_PAGINATION_LABEL(page, pages), "noop").text("->", `pg:${encodeURIComponent(query)}:${pageSize}:${page + 1}`);
+
+  await ctx.reply(text, { reply_markup: kb });
 }
 
 export async function onSearchCallback(ctx: Context) {
   const data = ctx.callbackQuery?.data ?? "";
-  const m = /^show:(-?\d+):(\d+)$/.exec(data);
-  if (!m) return;
-  const [, chatIdStr, msgIdStr] = m;
-  try {
-    if (!ctx.chat?.id) return;
-    await ctx.api.copyMessage(Number(ctx.chat.id), Number(chatIdStr), Number(msgIdStr));
-  } catch (e) {
-    logError((e as Error).message);
-  } finally {
-    await ctx.answerCallbackQuery();
+  let m = /^show:(-?\d+):(\d+)$/.exec(data);
+  if (m) {
+    const [, chatIdStr, msgIdStr] = m;
+    try {
+      if (!ctx.chat?.id) return;
+      await ctx.api.copyMessage(Number(ctx.chat.id), Number(chatIdStr), Number(msgIdStr));
+    } catch (e) {
+      logError((e as Error).message);
+    } finally {
+      await ctx.answerCallbackQuery();
+    }
+    return;
+  }
+
+  m = /^pg:([^:]+):(\d+):(\d+)$/.exec(data);
+  if (m) {
+    const [, encQ, sizeStr, pageStr] = m;
+    const query = decodeURIComponent(encQ);
+    const pageSize = Number(sizeStr);
+    const page = Math.max(1, Number(pageStr));
+    const chatId = ctx.chat?.id;
+    if (!chatId) return;
+    const totalMatch = /—\s(\d+)/.exec(ctx.callbackQuery?.message?.text ?? "");
+    const total = Number(totalMatch?.[1] ?? 0);
+    const pages = Math.max(1, Math.ceil(total / pageSize));
+    const realPage = Math.min(Math.max(1, page), pages);
+    const offset = (realPage - 1) * pageSize;
+    const res = await searchMessages({ chatId: BigInt(chatId), query, limit: pageSize, offset });
+
+    const header = MSG_SEARCH_HEADER(query, total);
+    const lines: string[] = [];
+    for (const hit of res.hits) {
+      const full = hit.doc.text ?? "";
+      const snippet = makeSnippet(full, query).replace(/\n/g, " ");
+      lines.push(snippet || full.slice(0, 200));
+    }
+    const body = lines.map((s) => `${s}\n[${MSG_SHOW_FULL_BUTTON}]`).join("\n\n");
+    const text = `${header}\n\n${body}`.slice(0, 4000);
+
+    const kb = new InlineKeyboard();
+    for (const hit of res.hits) {
+      const [chat_id, message_id_str] = hit.id.split(":");
+      kb.text(MSG_SHOW_FULL_BUTTON, `show:${chat_id}:${message_id_str}`).row();
+    }
+    kb.text("<-", `pg:${encodeURIComponent(query)}:${pageSize}:${realPage - 1}`).text(MSG_PAGINATION_LABEL(realPage, pages), "noop").text("->", `pg:${encodeURIComponent(query)}:${pageSize}:${realPage + 1}`);
+
+    try {
+      await ctx.editMessageText(text, { reply_markup: kb });
+    } catch (e) {
+      logError((e as Error).message);
+    } finally {
+      await ctx.answerCallbackQuery();
+    }
   }
 }
