@@ -127,4 +127,3 @@ export async function onSearch(ctx: Context) {
     await ctx.reply("Произошла ошибка при поиске. Попробуйте позже.");
   }
 }
-
