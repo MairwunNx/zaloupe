@@ -23,10 +23,11 @@ export async function ensureIndex(): Promise<void> {
                 ru_search: {
                   type: "custom",
                   tokenizer: "standard",
-                  filter: ["lowercase", "russian_stop", "russian_stemmer"],
+                  filter: ["lowercase", "icu_folding", "russian_stop", "russian_stemmer"],
                 },
               },
               filter: {
+                icu_folding: { type: "icu_folding", unicode_set_filter: "[:any:]" },
                 russian_stop: { type: "stop", stopwords: "_russian_" },
                 russian_stemmer: { type: "stemmer", language: "russian" },
               },
