@@ -4,7 +4,8 @@ export interface IndexedMessage {
   from_id?: string;
   from_username?: string | null;
   date: string;
-  text?: string;
+  text?: string;           // оригинал
+  text_trimmed?: string;   // обрезанный/очищенный
   entities?: unknown[];
   attachments?: unknown[];
   lang?: string;
