@@ -201,9 +201,9 @@ function makeSnippet(text: string, query: string): string {
 
 export async function onSearch(ctx: Context) {
   const chatId = ctx.chat?.id;
-  const q = ctx.match as unknown as string;
   if (!chatId) return;
-  const query = (q ?? "").toString().trim();
+  const raw = (ctx.message && "text" in ctx.message && typeof ctx.message.text === "string") ? ctx.message.text : "";
+  const query = raw.replace(/^\/search(?:@\w+)?\s*/i, "").trim();
   if (!query) {
     await ctx.reply(MSG_SEARCH_USAGE);
     return;
