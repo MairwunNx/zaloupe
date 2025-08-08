@@ -14,41 +14,47 @@ export async function ensureIndex(): Promise<void> {
   try {
     const exists = await client.indices.exists({ index: ELASTIC_INDEX });
     if (!exists) {
-      await client.indices.create({
-        index: ELASTIC_INDEX,
-        settings: {
-          analysis: {
-            analyzer: {
-              ru_search: {
-                type: "custom",
-                tokenizer: "standard",
-                filter: ["lowercase", "russian_stop", "russian_stemmer"],
+      try {
+        await client.indices.create({
+          index: ELASTIC_INDEX,
+          settings: {
+            analysis: {
+              analyzer: {
+                ru_search: {
+                  type: "custom",
+                  tokenizer: "standard",
+                  filter: ["lowercase", "russian_stop", "russian_stemmer"],
+                },
+              },
+              filter: {
+                russian_stop: { type: "stop", stopwords: "_russian_" },
+                russian_stemmer: { type: "stemmer", language: "russian" },
               },
             },
-            filter: {
-              russian_stop: { type: "stop", stopwords: "_russian_" },
-              russian_stemmer: { type: "stemmer", language: "russian" },
+          },
+          mappings: {
+            properties: {
+              chat_id: { type: "keyword" },
+              message_id: { type: "long" },
+              date: { type: "date" },
+              text: { type: "text", analyzer: "ru_search", term_vector: "with_positions_offsets" },
+              text_trimmed: { type: "text", analyzer: "ru_search" },
+              entities: { type: "nested" },
+              attachments: { type: "nested" },
+              lang: { type: "keyword" },
+              chat_type: { type: "keyword" },
             },
           },
-        },
-        mappings: {
-          properties: {
-            chat_id: { type: "keyword" },
-            message_id: { type: "long" },
-            date: { type: "date" },
-            text: { type: "text", analyzer: "ru_search", term_vector: "with_positions_offsets" },
-            text_trimmed: { type: "text", analyzer: "ru_search" },
-            entities: { type: "nested" },
-            attachments: { type: "nested" },
-            lang: { type: "keyword" },
-            chat_type: { type: "keyword" },
-          },
-        },
-      });
-      logInfo(`Создан индекс Elasticsearch: ${ELASTIC_INDEX}`);
+        });
+        logInfo(`Создан индекс Elasticsearch: ${ELASTIC_INDEX}`);
+      } catch (err: any) {
+        const type = err?.meta?.body?.error?.type;
+        if (type !== 'resource_already_exists_exception') throw err;
+        logInfo(`Индекс уже существует: ${ELASTIC_INDEX}`);
+      }
     }
   } catch (e) {
-    logError(`Ошибка ensureIndex: ${(e as Error).message}`);
+    logError(`Ошибка ensureIndex:`, e);
   }
 }
 
@@ -62,7 +68,7 @@ export async function indexMessage(doc: IndexedMessage): Promise<void> {
     });
     logInfo(`Сообщение ${doc.chat_id}:${doc.message_id} проиндексировано в Elasticsearch`);
   } catch (e) {
-    logError(`Ошибка индексации в Elasticsearch: ${(e as Error).message}`);
+    logError(`Ошибка индексации в Elasticsearch:`, e);
     throw e; // Перебрасываем ошибку для retry механизма
   }
 }
@@ -71,8 +77,8 @@ export async function searchMessages(params: SearchParams): Promise<SearchResult
   const { chatId, query, limit = 5, offset = 0 } = params;
   try {
     logInfo(`Поиск в чате ${chatId}`);
-    
-    const res = await client.search({
+
+    const res = await client.search<IndexedMessage>({
       index: ELASTIC_INDEX,
       size: Math.min(limit, 25),
       from: Math.max(0, offset),
@@ -102,20 +108,20 @@ export async function searchMessages(params: SearchParams): Promise<SearchResult
       },
     });
 
-    const total = typeof (res as any).hits.total === "number" ? (res as any).hits.total : ((res as any).hits.total?.value ?? 0);
-    const rawHits = ((res as any).hits.hits || []) as Array<{ _id: string; _score?: number; _source: IndexedMessage }>;
-    const hits = rawHits.map((h) => ({
+    const total = typeof res.hits.total === 'number'
+      ? res.hits.total
+      : (res.hits.total?.value ?? 0);
+
+    const hits = res.hits.hits.map(h => ({
       id: String(h._id),
       score: h._score ?? undefined,
-      doc: h._source,
+      doc: h._source!,
     }));
-    
+
     logInfo(`Найдено ${total} результатов для запроса в чате ${chatId}`);
     return { total, hits };
   } catch (e) {
-    logError(`Ошибка поиска в Elasticsearch: ${(e as Error).message}`);
+    logError(`Ошибка поиска в Elasticsearch:`, e);
     throw e; // Перебрасываем ошибку для обработки на уровне выше
   }
 }
-
-
