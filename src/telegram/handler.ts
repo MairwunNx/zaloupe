@@ -17,6 +17,14 @@ import {
   MSG_SEARCH_NO_RESULTS,
   MSG_SEARCH_USAGE,
   MSG_PAGINATION_LABEL,
+  KB_ACCEPT,
+  KB_REVOKE_CHAT,
+  KB_REVOKE_PERSONAL,
+  KB_PURGE_CHAT,
+  KB_PURGE_ME,
+  KB_DISABLED,
+  KB_PG_BACK,
+  KB_PG_NEXT,
 } from "./messages";
 import { logError } from "../shared/logging";
 import telegramifyMarkdown from "telegramify-markdown";
@@ -30,14 +38,14 @@ const C = {
   PURGE_ME: "purge_me"
 } as const;
 
-const kbAccept = new InlineKeyboard().text("Принять условия", C.ACCEPT);
-const kbPurgeAll = new InlineKeyboard().text("Удалить все сообщения группы", C.PURGE_CHAT);
-const kbPurgeMe = new InlineKeyboard().text("Удалить мои сообщения", C.PURGE_ME);
+const kbAccept = new InlineKeyboard().text(KB_ACCEPT, C.ACCEPT);
+const kbPurgeAll = new InlineKeyboard().text(KB_PURGE_CHAT, C.PURGE_CHAT);
+const kbPurgeMe = new InlineKeyboard().text(KB_PURGE_ME, C.PURGE_ME);
 const kbNotation = (priv: boolean) =>
   new InlineKeyboard()
-    .text("Расторгнуть соглашение", C.REVOKE_CHAT)
+    .text(KB_REVOKE_CHAT, C.REVOKE_CHAT)
     .row()
-    .text(priv ? "—" : "Расторгнуть персональное", C.REVOKE_PERSONAL);
+    .text(priv ? KB_DISABLED : KB_REVOKE_PERSONAL, C.REVOKE_PERSONAL);
 
 async function isAdmin(ctx: Context, uid: number): Promise<boolean> {
   if (ctx.chat?.type === "private") return true;
