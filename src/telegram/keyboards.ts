@@ -34,4 +34,3 @@ export const kbPagination = (token: string, page: number, pageSize: number, page
     .text(KB_PG_BACK, `pg:${token}:${pageSize}:${page - 1}`)
     .text(MSG_PAGINATION_LABEL(page, pages), "noop")
     .text(KB_PG_NEXT, `pg:${token}:${pageSize}:${page + 1}`);
-
