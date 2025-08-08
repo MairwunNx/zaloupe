@@ -2,6 +2,7 @@ import { Bot } from 'grammy';
 import { BOT_TOKEN, DATABASE_URL } from './entrypoint.env';
 import { logError, logInfo, logSuccess } from '../shared/logging';
 import { onStart, onNotation, onStats, onChatMemberUpdate, onCallback, onMessage, onSearch, onSearchCallback } from '../telegram/handler';
+import { ensureIndex } from "../features/search/search.service";
 
 async function main() {
   if (!BOT_TOKEN) return logError("BOT_TOKEN не задан в .env");
@@ -34,6 +35,7 @@ async function main() {
     })
   );
 
+  await ensureIndex();
   await bot.start();
   logSuccess("Zaloupe бот запущен");
 }
