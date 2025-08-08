@@ -117,5 +117,5 @@ export const KB_PURGE_ME = `❌ Удалить мои сообщения`;
 export const KB_DISABLED = `—`;
 export const KB_PG_BACK = `⬅️`;
 export const KB_PG_NEXT = `➡️`;
-
+export const MSG_ERROR_STATS = `❌ Ошибка при получении статистики`;
 export const MSG_SEARCH_HIT_HEADER = (username: string, dateDMY: string) => `От ${username} ${dateDMY}.`;
