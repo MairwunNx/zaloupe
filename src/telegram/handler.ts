@@ -29,7 +29,9 @@ import {
 } from "./messages";
 import { logError } from "../shared/logging";
 import telegramifyMarkdown from "telegramify-markdown";
-import { indexMessage, searchMessages, ensureIndex } from "../features/search/search.service";
+import { searchMessages } from "../features/search/search.service";
+import { enqueueIndex } from "../features/search/index.queue";
+import { createSearchToken, readSearchToken } from "../shared/tokens";
 
 const C = {
   ACCEPT: "accept_terms",
@@ -177,14 +179,15 @@ export async function onMessage(ctx: Context) {
     const chatRow = await ChatRepo.get(chatId);
     if (!chatRow?.accepted_at || chatRow.revoked_at) return;
     const messageId = msg.message_id;
-    await ensureIndex();
-    await indexMessage({
+    const trimmed = msg.text.trim();
+    await enqueueIndex({
       chat_id: String(chat.id),
       message_id: messageId,
       from_id: msg.from ? String(msg.from.id) : undefined,
       from_username: msg.from?.username ?? null,
       date: new Date((msg.date ?? Math.floor(Date.now() / 1000)) * 1000).toISOString(),
       text: msg.text,
+      text_trimmed: trimmed,
       entities: (msg.entities as any) ?? undefined,
       chat_type: chat.type,
     });
@@ -234,6 +237,7 @@ export async function onSearch(ctx: Context) {
     return;
   }
   const pages = Math.max(1, Math.ceil(res.total / pageSize));
+  const token = await createSearchToken(chatId, query);
 
   const rawHeader = MSG_SEARCH_HEADER(query, res.total);
   const header = escapeMd(rawHeader);
@@ -247,20 +251,20 @@ export async function onSearch(ctx: Context) {
     const body = `>${escapeMd(full)}||`;
     blocks.push(`${ital}\n${body}`);
   }
-  const text = `${header}\n\n${blocks.join("\n\n")}`.slice(0, 3500);
+  let composed = `${header}\n\n${blocks.join("\n\n")}`;
+  const text = composed.slice(0, 3900);
 
   const kb = new InlineKeyboard();
-  kb.text(KB_PG_BACK, `pg:${encodeURIComponent(query)}:${pageSize}:${page - 1}`).text(MSG_PAGINATION_LABEL(page, pages), "noop").text(KB_PG_NEXT, `pg:${encodeURIComponent(query)}:${pageSize}:${page + 1}`);
+  kb.text(KB_PG_BACK, `pg:${token}:${pageSize}:${page - 1}`).text(MSG_PAGINATION_LABEL(page, pages), "noop").text(KB_PG_NEXT, `pg:${token}:${pageSize}:${page + 1}`);
 
   await ctx.reply(text, { reply_markup: kb, parse_mode: "MarkdownV2" });
 }
 
 export async function onSearchCallback(ctx: Context) {
   const data = ctx.callbackQuery?.data ?? "";
-  const m = /^pg:([^:]+):(\d+):(\d+)$/.exec(data);
+  const m = /^pg:([A-Za-z0-9_-]{8,20}):(\d+):(\d+)$/.exec(data);
   if (m) {
-    const [, encQ, sizeStr, pageStr] = m;
-    const query = decodeURIComponent(encQ);
+    const [, token, sizeStr, pageStr] = m;
     const pageSize = Number(sizeStr);
     const page = Math.max(1, Number(pageStr));
     const chatId = ctx.chat?.id;
@@ -270,6 +274,8 @@ export async function onSearchCallback(ctx: Context) {
     const pages = Math.max(1, Math.ceil(total / pageSize));
     const realPage = Math.min(Math.max(1, page), pages);
     const offset = (realPage - 1) * pageSize;
+    const payload = await readSearchToken(token);
+    const query = payload?.query ?? "";
     const res = await searchMessages({ chatId: BigInt(chatId), query, limit: pageSize, offset });
 
     const rawHeader = MSG_SEARCH_HEADER(query, total);
@@ -284,10 +290,11 @@ export async function onSearchCallback(ctx: Context) {
       const body = `>${escapeMd(full)}||`;
       blocks.push(`${ital}\n${body}`);
     }
-    const text = `${header}\n\n${blocks.join("\n\n")}`.slice(0, 3500);
+    let composed = `${header}\n\n${blocks.join("\n\n")}`;
+    const text = composed.slice(0, 3500);
 
     const kb = new InlineKeyboard();
-    kb.text(KB_PG_BACK, `pg:${encodeURIComponent(query)}:${pageSize}:${realPage - 1}`).text(MSG_PAGINATION_LABEL(realPage, pages), "noop").text(KB_PG_NEXT, `pg:${encodeURIComponent(query)}:${pageSize}:${realPage + 1}`);
+    kb.text(KB_PG_BACK, `pg:${pageSize}:${realPage - 1}`).text(MSG_PAGINATION_LABEL(realPage, pages), "noop").text(KB_PG_NEXT, `pg:${pageSize}:${realPage + 1}`);
 
     try {
       await ctx.editMessageText(text, { reply_markup: kb, parse_mode: "MarkdownV2" });
