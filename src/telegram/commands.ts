@@ -79,43 +79,52 @@ export async function onSearch(ctx: Context) {
     await ctx.reply(MSG_SEARCH_USAGE);
     return;
   }
-  const pageSize = 12;
-  const page = 1;
-  const offset = 0;
-  const res = await searchMessages({ chatId: BigInt(chatId), query, limit: pageSize, offset });
+  
   try {
-    await EventRepo.insert({
-      id: crypto.randomUUID(),
-      event_type: "search",
-      chat_id: BigInt(chatId),
-      user_id: ctx.from ? BigInt(ctx.from.id) : null,
-    });
-  } catch {}
+    const pageSize = 12;
+    const page = 1;
+    const offset = 0;
+    const res = await searchMessages({ chatId: BigInt(chatId), query, limit: pageSize, offset });
+    
+    try {
+      await EventRepo.insert({
+        id: crypto.randomUUID(),
+        event_type: "search",
+        chat_id: BigInt(chatId),
+        user_id: ctx.from ? BigInt(ctx.from.id) : null,
+      });
+    } catch (e) {
+      logError(`Ошибка сохранения события поиска: ${(e as Error).message}`);
+    }
 
-  if (!res.total) {
-    await ctx.reply(MSG_SEARCH_NO_RESULTS(query));
-    return;
+    if (!res.total) {
+      await ctx.reply(MSG_SEARCH_NO_RESULTS(query));
+      return;
+    }
+    const pages = Math.max(1, Math.ceil(res.total / pageSize));
+    const token = await createSearchToken(chatId, query);
+
+    const rawHeader = MSG_SEARCH_HEADER(query, res.total);
+    const header = escapeMd(rawHeader);
+    const blocks: string[] = [];
+    for (const hit of res.hits) {
+      const full = hit.doc.text ?? "";
+      const username = hit.doc.from_username ? `@${hit.doc.from_username}` : "аноним";
+      const when = formatDateDMY(hit.doc.date);
+      const headerLine = `От ${username} ${when}.`;
+      const ital = `_${escapeMd(headerLine)}_`;
+      const body = `>${escapeMd(full)}||`;
+      blocks.push(`${ital}\n${body}`);
+    }
+    let composed = `${header}\n\n${blocks.join("\n\n")}`;
+    const text = composed.slice(0, 3900);
+
+    const kb = kbPagination(token, page, pageSize, pages);
+
+    await ctx.reply(text, { reply_markup: kb, parse_mode: "MarkdownV2" });
+  } catch (e) {
+    logError(`Ошибка поиска в чате ${chatId}: ${(e as Error).message}`);
+    await ctx.reply("Произошла ошибка при поиске. Попробуйте позже.");
   }
-  const pages = Math.max(1, Math.ceil(res.total / pageSize));
-  const token = await createSearchToken(chatId, query);
-
-  const rawHeader = MSG_SEARCH_HEADER(query, res.total);
-  const header = escapeMd(rawHeader);
-  const blocks: string[] = [];
-  for (const hit of res.hits) {
-    const full = hit.doc.text ?? "";
-    const username = hit.doc.from_username ? `@${hit.doc.from_username}` : "аноним";
-    const when = formatDateDMY(hit.doc.date);
-    const headerLine = `От ${username} ${when}.`;
-    const ital = `_${escapeMd(headerLine)}_`;
-    const body = `>${escapeMd(full)}||`;
-    blocks.push(`${ital}\n${body}`);
-  }
-  let composed = `${header}\n\n${blocks.join("\n\n")}`;
-  const text = composed.slice(0, 3900);
-
-  const kb = kbPagination(token, page, pageSize, pages);
-
-  await ctx.reply(text, { reply_markup: kb, parse_mode: "MarkdownV2" });
 }
 
