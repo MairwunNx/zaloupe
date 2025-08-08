@@ -22,6 +22,7 @@ export interface SearchParams {
   chatId: bigint | number | string;
   query: string;
   limit?: number;
+  offset?: number;
 }
 
 export interface SearchResult {
