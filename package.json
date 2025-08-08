@@ -4,6 +4,12 @@
   "description": "🤖 Telegram-бот для поиска сообщений в чате по словам (поисковому запросу) 📱",
   "module": "index.ts",
   "type": "module",
+  "scripts": {
+    "start": "bun run index.ts",
+    "dev": "bun run --watch index.ts",
+    "build": "bun build src/application/entrypoint.ts --outdir dist/application --target bun",
+    "test": "bun test"
+  },
   "private": true,
   "devDependencies": {
     "@types/bun": "latest",
