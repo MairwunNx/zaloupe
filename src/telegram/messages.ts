@@ -106,3 +106,5 @@ export const MSG_SEARCH_NO_RESULTS = (q: string) => `Ничего не нашё�
 export const MSG_SEARCH_HEADER = (q: string, total: number) => `🔎 Результаты по “${q}” — ${total}`;
 
 export const MSG_SHOW_FULL_BUTTON = `Показать полностью`;
+
+export const MSG_PAGINATION_LABEL = (page: number, pages: number) => `${page}/${pages}`;
