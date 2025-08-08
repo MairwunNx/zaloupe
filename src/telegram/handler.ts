@@ -25,6 +25,7 @@ import {
   KB_DISABLED,
   KB_PG_BACK,
   KB_PG_NEXT,
+  MSG_ERROR_STATS,
 } from "./messages";
 import { logError } from "../shared/logging";
 import telegramifyMarkdown from "telegramify-markdown";
@@ -159,7 +160,7 @@ export async function onStats(ctx: Context) {
     );
   } catch (e) {
     logError((e as Error).message);
-    await ctx.reply("❌ Ошибка при получении статистики");
+    await ctx.reply(MSG_ERROR_STATS);
   }
 }
 
