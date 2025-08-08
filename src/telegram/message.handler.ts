@@ -1,6 +1,6 @@
 import { Context } from "grammy";
 import { ChatRepo, EventRepo } from "../shared/database";
-import { logError } from "../shared/logging";
+import { logError, logInfo } from "../shared/logging";
 import { enqueueIndex } from "../queue/index.queue";
 
 export async function onMessage(ctx: Context) {
@@ -15,12 +15,20 @@ export async function onMessage(ctx: Context) {
   ) {
     return;
   }
+  
   try {
     const chatId = BigInt(chat.id);
     const chatRow = await ChatRepo.get(chatId);
-    if (!chatRow?.accepted_at || chatRow.revoked_at) return;
+    if (!chatRow?.accepted_at || chatRow.revoked_at) {
+      logInfo(`Сообщение в чате ${chat.id} игнорируется - чат не принят или отозван`);
+      return;
+    }
+    
     const messageId = msg.message_id;
     const trimmed = msg.text.trim();
+    
+    logInfo(`Обрабатываю сообщение ${chat.id}:${messageId} от ${msg.from?.username || 'анонима'}`);
+    
     await enqueueIndex({
       chat_id: String(chat.id),
       message_id: messageId,
@@ -32,6 +40,7 @@ export async function onMessage(ctx: Context) {
       entities: (msg.entities as any) ?? undefined,
       chat_type: chat.type,
     });
+
     await EventRepo.insert({
       id: crypto.randomUUID(),
       event_type: "index",
@@ -39,8 +48,10 @@ export async function onMessage(ctx: Context) {
       user_id: msg.from ? BigInt(msg.from.id) : null,
       message_id: BigInt(messageId),
     });
+    
+    logInfo(`Сообщение ${chat.id}:${messageId} успешно обработано`);
   } catch (e) {
-    logError((e as Error).message);
+    logError(`Ошибка обработки сообщения в чате ${chat.id}: ${(e as Error).message}`);
   }
 }
 
