@@ -8,10 +8,10 @@ services:
     networks: [ default ]
     env_file: .env
     depends_on:
-      postgres:
-        condition: service_healthy
       flyway:
         condition: service_completed_successfully
+      postgres:
+        condition: service_healthy
       redis:
         condition: service_healthy
       elasticsearch:
@@ -23,22 +23,21 @@ services:
         max-file: "3"
 
   elasticsearch:
-    image: docker.elastic.co/elasticsearch/elasticsearch:8.14.1
+    image: docker.elastic.co/elasticsearch/elasticsearch:9.1.1
     container_name: elasticsearch
     env_file: .env
     restart: unless-stopped
     networks: [ default ]
     environment:
       - discovery.type=single-node
-      - xpack.security.enabled=${ELASTIC_XPACK_SECURITY_ENABLED:-false}
-      - ES_JAVA_OPTS=${ES_JAVA_OPTS:-"-Xms512m -Xmx512m"}
     volumes:
       - ./data/elasticsearch:/usr/share/elasticsearch/data
     healthcheck:
-      test: [ "CMD-SHELL", "curl -fsSL http://localhost:9200 >/dev/null || exit 1" ]
-      interval: 10s
-      timeout: 5s
-      retries: 12
+      test: ["CMD-SHELL", "curl -sf http://localhost:9200 >/dev/null || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 40s
     logging:
       driver: "json-file"
       options:
@@ -46,7 +45,7 @@ services:
         max-file: "3"
 
   postgres:
-    image: postgres:16
+    image: postgres:17.5
     container_name: postgres
     env_file: .env
     restart: unless-stopped
@@ -65,7 +64,7 @@ services:
         max-file: "3"
 
   flyway:
-    image: flyway/flyway:10-alpine
+    image: flyway/flyway:11.11-alpine
     container_name: flyway
     networks: [ default ]
     env_file: .env
@@ -82,7 +81,7 @@ services:
         max-file: "3"
 
   redis:
-    image: redis:7-alpine
+    image: redis:8.2.0-alpine
     container_name: redis
     env_file: .env
     restart: unless-stopped
