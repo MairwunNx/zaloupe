@@ -1,7 +1,7 @@
 import { Queue, Worker, JobsOptions } from "bullmq";
-import { getRedis } from "../../shared/redis";
-import { indexMessage } from "./search.service";
-import { IndexedMessage } from "./search.types";
+import { getRedis } from "./redis";
+import { indexMessage } from "../features/search/search.service";
+import { IndexedMessage } from "../features/search/search.types";
 
 const connection = getRedis();
 export const INDEX_QUEUE_NAME = "index-messages" as const;
@@ -14,8 +14,7 @@ export function startIndexWorker(concurrency = Number(process.env.INDEX_CONCURRE
   const processor = async (job: { data: IndexJobData }) => {
     await indexMessage(job.data.doc);
   };
-  // Note: BullMQ Worker requires ioredis connection options, not instance
-  // We pass connection string via env to new Worker implicitly
+
   return new Worker(INDEX_QUEUE_NAME, processor as any, {
     concurrency,
     connection,
@@ -31,3 +30,4 @@ export async function enqueueIndex(doc: IndexedMessage) {
   };
   await indexQueue.add("index", { doc }, opts);
 }
+
