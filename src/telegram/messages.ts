@@ -108,3 +108,14 @@ export const MSG_SEARCH_HEADER = (q: string, total: number) => `🔎 Резул�
 export const MSG_SHOW_FULL_BUTTON = `Показать полностью`;
 
 export const MSG_PAGINATION_LABEL = (page: number, pages: number) => `${page}/${pages}`;
+
+export const KB_ACCEPT = `✅ Принять условия`;
+export const KB_REVOKE_CHAT = `❌ Расторгнуть соглашение`;
+export const KB_REVOKE_PERSONAL = `❌ Расторгнуть персональное`;
+export const KB_PURGE_CHAT = `❌ Удалить все сообщения группы`;
+export const KB_PURGE_ME = `❌ Удалить мои сообщения`;
+export const KB_DISABLED = `—`;
+export const KB_PG_BACK = `⬅️`;
+export const KB_PG_NEXT = `➡️`;
+
+export const MSG_SEARCH_HIT_HEADER = (username: string, dateDMY: string) => `От ${username} ${dateDMY}.`;
