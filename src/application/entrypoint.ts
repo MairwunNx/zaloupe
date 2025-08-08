@@ -1,7 +1,7 @@
 import { Bot } from 'grammy';
 import { BOT_TOKEN, DATABASE_URL } from './entrypoint.env';
 import { logError, logInfo, logSuccess } from '../shared/logging';
-import { onStart, onNotation, onStats, onChatMemberUpdate, onCallback } from '../telegram/handler';
+import { onStart, onNotation, onStats, onChatMemberUpdate, onCallback, onMessage, onSearch, onSearchCallback } from '../telegram/handler';
 
 async function main() {
   if (!BOT_TOKEN) return logError("BOT_TOKEN не задан в .env");
@@ -12,9 +12,15 @@ async function main() {
   bot.command("start", onStart);
   bot.command("notation", onNotation);
   bot.command("stats", onStats);
+  bot.command("search", onSearch);
 
   bot.on("my_chat_member", onChatMemberUpdate);
-  bot.on("callback_query:data", onCallback);
+  bot.on("callback_query:data", async (ctx, next) => {
+    const data = ctx.callbackQuery?.data ?? "";
+    if (data.startsWith("show:")) return onSearchCallback(ctx);
+    return onCallback(ctx);
+  });
+  bot.on("message", onMessage);
 
   bot.catch((err) => {
     const errorMessage = err.error instanceof Error ? err.error.message : String(err.error);
