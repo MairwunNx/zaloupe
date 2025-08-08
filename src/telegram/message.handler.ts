@@ -54,4 +54,3 @@ export async function onMessage(ctx: Context) {
     logError(`Ошибка обработки сообщения в чате ${chat.id}: ${(e as Error).message}`);
   }
 }
-
