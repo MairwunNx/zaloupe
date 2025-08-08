@@ -58,16 +58,20 @@ export async function indexMessage(doc: IndexedMessage): Promise<void> {
       index: ELASTIC_INDEX,
       id: `${doc.chat_id}:${doc.message_id}`,
       document: doc,
-      refresh: "false",
+      refresh: "wait_for", // Ждем обновления индекса для немедленного поиска
     });
+    logInfo(`Сообщение ${doc.chat_id}:${doc.message_id} проиндексировано в Elasticsearch`);
   } catch (e) {
-    logError(`Ошибка индексации: ${(e as Error).message}`);
+    logError(`Ошибка индексации в Elasticsearch: ${(e as Error).message}`);
+    throw e; // Перебрасываем ошибку для retry механизма
   }
 }
 
 export async function searchMessages(params: SearchParams): Promise<SearchResult> {
   const { chatId, query, limit = 5, offset = 0 } = params;
   try {
+    logInfo(`Поиск в чате ${chatId}`);
+    
     const res = await client.search({
       index: ELASTIC_INDEX,
       size: Math.min(limit, 25),
@@ -105,10 +109,12 @@ export async function searchMessages(params: SearchParams): Promise<SearchResult
       score: h._score ?? undefined,
       doc: h._source,
     }));
+    
+    logInfo(`Найдено ${total} результатов для запроса в чате ${chatId}`);
     return { total, hits };
   } catch (e) {
-    logError(`Ошибка поиска: ${(e as Error).message}`);
-    return { total: 0, hits: [] };
+    logError(`Ошибка поиска в Elasticsearch: ${(e as Error).message}`);
+    throw e; // Перебрасываем ошибку для обработки на уровне выше
   }
 }
 
