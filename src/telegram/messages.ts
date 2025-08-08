@@ -98,3 +98,11 @@ export const MSG_STATS = (global_messages: number, global_searches: number, chat
 • Сообщений: ${user_messages}  
 • Запросов:   ${user_searches}
 `;
+
+export const MSG_SEARCH_USAGE = `ℹ️ Использование: /search <запрос>\n\nПример: /search обещаю никогда`;
+
+export const MSG_SEARCH_NO_RESULTS = (q: string) => `Ничего не нашёл по запросу: “${q}”`;
+
+export const MSG_SEARCH_HEADER = (q: string, total: number) => `🔎 Результаты по “${q}” — ${total}`;
+
+export const MSG_SHOW_FULL_BUTTON = `Показать полностью`;
