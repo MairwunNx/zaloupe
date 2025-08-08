@@ -14,32 +14,6 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
-      elasticsearch:
-        condition: service_healthy
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
-
-  elasticsearch:
-    build:
-      context: .
-      dockerfile: Elastic.Dockerfile
-    container_name: elasticsearch
-    env_file: .env
-    restart: unless-stopped
-    networks: [ default ]
-    environment:
-      - discovery.type=single-node
-    volumes:
-      - ./data/elasticsearch:/usr/share/elasticsearch/data
-    healthcheck:
-      test: ["CMD-SHELL", "curl -sf http://localhost:9200 >/dev/null || exit 1"]
-      interval: 10s
-      timeout: 5s
-      retries: 60
-      start_period: 15s
     logging:
       driver: "json-file"
       options:
