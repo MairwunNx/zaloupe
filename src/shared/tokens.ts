@@ -1,5 +1,5 @@
 import crypto from "node:crypto";
-import { getRedis } from "./redis";
+import { getRedis } from "../queue/redis";
 
 const redis = getRedis();
 const PREFIX = "search:q:";
