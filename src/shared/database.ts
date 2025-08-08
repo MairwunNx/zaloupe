@@ -64,6 +64,7 @@ export interface EventBase {
   event_type: EventType;
   chat_id: bigint;
   user_id?: bigint | null;
+  message_id?: bigint | number | null;
 }
 
 export const ChatRepo = {
@@ -106,8 +107,8 @@ export const UserRepo = {
 export const EventRepo = {
   async insert(e: EventBase): Promise<void> {
     await exec`
-      INSERT INTO events (id, event_type, chat_id, user_id)
-      VALUES (${e.id}, ${e.event_type}, ${e.chat_id}, ${e.user_id ?? null})`;
+      INSERT INTO events (id, event_type, chat_id, user_id, message_id)
+      VALUES (${e.id}, ${e.event_type}, ${e.chat_id}, ${e.user_id ?? null}, ${e.message_id ?? null})`;
   }
 };
 
