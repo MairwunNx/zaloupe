@@ -37,6 +37,7 @@ export async function ensureIndex(): Promise<void> {
             message_id: { type: "long" },
             date: { type: "date" },
             text: { type: "text", analyzer: "ru_search", term_vector: "with_positions_offsets" },
+            text_trimmed: { type: "text", analyzer: "ru_search" },
             entities: { type: "nested" },
             attachments: { type: "nested" },
             lang: { type: "keyword" },
@@ -77,7 +78,7 @@ export async function searchMessages(params: SearchParams): Promise<SearchResult
           must: [{
             simple_query_string: {
               query,
-              fields: ["text^2"],
+              fields: ["text^2", "text_trimmed"],
               default_operator: "and",
             },
           }],
