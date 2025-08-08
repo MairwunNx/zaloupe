@@ -2,6 +2,7 @@ export interface IndexedMessage {
   chat_id: string;
   message_id: number;
   from_id?: string;
+  from_username?: string | null;
   date: string;
   text?: string;
   entities?: unknown[];
