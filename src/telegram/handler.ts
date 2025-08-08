@@ -16,10 +16,10 @@ import {
   MSG_SEARCH_HEADER,
   MSG_SEARCH_NO_RESULTS,
   MSG_SEARCH_USAGE,
-  MSG_SHOW_FULL_BUTTON,
   MSG_PAGINATION_LABEL,
 } from "./messages";
 import { logError } from "../shared/logging";
+import telegramifyMarkdown from "telegramify-markdown";
 import { indexMessage, searchMessages, ensureIndex } from "../features/search/search.service";
 
 const C = {
@@ -173,6 +173,7 @@ export async function onMessage(ctx: Context) {
       chat_id: String(chat.id),
       message_id: messageId,
       from_id: msg.from ? String(msg.from.id) : undefined,
+      from_username: msg.from?.username ?? null,
       date: new Date((msg.date ?? Math.floor(Date.now() / 1000)) * 1000).toISOString(),
       text: msg.text,
       entities: (msg.entities as any) ?? undefined,
@@ -184,20 +185,14 @@ export async function onMessage(ctx: Context) {
   }
 }
 
-function makeSnippet(text: string, query: string): string {
-  const q = query.trim();
-  if (!text) return "";
-  if (!q) return text.slice(0, 160);
-  const lower = text.toLowerCase();
-  const term = q.split(/\s+/)[0].toLowerCase();
-  const idx = lower.indexOf(term);
-  if (idx === -1) return text.slice(0, 160);
-  const start = Math.max(0, idx - 120);
-  const end = Math.min(text.length, idx + term.length + 120);
-  const leftDots = start > 0 ? "…" : "";
-  const rightDots = end < text.length ? "…" : "";
-  let snippet = text.slice(start, end).trim();
-  return `${leftDots}${snippet}${rightDots}`;
+const escapeMd = (s: string) => telegramifyMarkdown(s, "escape");
+
+function formatDateDMY(dateIso: string): string {
+  const d = new Date(dateIso);
+  const dd = String(d.getDate()).padStart(2, "0");
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const yyyy = d.getFullYear();
+  return `${dd}.${mm}.${yyyy}`;
 }
 
 export async function onSearch(ctx: Context) {
@@ -223,43 +218,29 @@ export async function onSearch(ctx: Context) {
   }
   const pages = Math.max(1, Math.ceil(res.total / pageSize));
 
-  const header = MSG_SEARCH_HEADER(query, res.total);
-  const lines: string[] = [];
+  const rawHeader = MSG_SEARCH_HEADER(query, res.total);
+  const header = escapeMd(rawHeader);
+  const blocks: string[] = [];
   for (const hit of res.hits) {
     const full = hit.doc.text ?? "";
-    const snippet = makeSnippet(full, query).replace(/\n/g, " ");
-    lines.push(snippet || full.slice(0, 200));
+    const username = hit.doc.from_username ? `@${hit.doc.from_username}` : "аноним";
+    const when = formatDateDMY(hit.doc.date);
+    const headerLine = `От ${username} ${when}.`;
+    const ital = `_${escapeMd(headerLine)}_`;
+    const body = `>${escapeMd(full)}||`;
+    blocks.push(`${ital}\n${body}`);
   }
-  const body = lines.map((s) => `${s}\n[${MSG_SHOW_FULL_BUTTON}]`).join("\n\n");
-  const text = `${header}\n\n${body}`.slice(0, 4000);
+  const text = `${header}\n\n${blocks.join("\n\n")}`.slice(0, 3500);
 
   const kb = new InlineKeyboard();
-  for (const hit of res.hits) {
-    const [chat_id, message_id_str] = hit.id.split(":");
-    kb.text(MSG_SHOW_FULL_BUTTON, `show:${chat_id}:${message_id_str}`).row();
-  }
   kb.text("<-", `pg:${encodeURIComponent(query)}:${pageSize}:${page - 1}`).text(MSG_PAGINATION_LABEL(page, pages), "noop").text("->", `pg:${encodeURIComponent(query)}:${pageSize}:${page + 1}`);
 
-  await ctx.reply(text, { reply_markup: kb });
+  await ctx.reply(text, { reply_markup: kb, parse_mode: "MarkdownV2" });
 }
 
 export async function onSearchCallback(ctx: Context) {
   const data = ctx.callbackQuery?.data ?? "";
-  let m = /^show:(-?\d+):(\d+)$/.exec(data);
-  if (m) {
-    const [, chatIdStr, msgIdStr] = m;
-    try {
-      if (!ctx.chat?.id) return;
-      await ctx.api.copyMessage(Number(ctx.chat.id), Number(chatIdStr), Number(msgIdStr));
-    } catch (e) {
-      logError((e as Error).message);
-    } finally {
-      await ctx.answerCallbackQuery();
-    }
-    return;
-  }
-
-  m = /^pg:([^:]+):(\d+):(\d+)$/.exec(data);
+  const m = /^pg:([^:]+):(\d+):(\d+)$/.exec(data);
   if (m) {
     const [, encQ, sizeStr, pageStr] = m;
     const query = decodeURIComponent(encQ);
@@ -274,25 +255,25 @@ export async function onSearchCallback(ctx: Context) {
     const offset = (realPage - 1) * pageSize;
     const res = await searchMessages({ chatId: BigInt(chatId), query, limit: pageSize, offset });
 
-    const header = MSG_SEARCH_HEADER(query, total);
-    const lines: string[] = [];
+    const rawHeader = MSG_SEARCH_HEADER(query, total);
+    const header = escapeMd(rawHeader);
+    const blocks: string[] = [];
     for (const hit of res.hits) {
       const full = hit.doc.text ?? "";
-      const snippet = makeSnippet(full, query).replace(/\n/g, " ");
-      lines.push(snippet || full.slice(0, 200));
+      const username = hit.doc.from_username ? `@${hit.doc.from_username}` : "аноним";
+      const when = formatDateDMY(hit.doc.date);
+      const headerLine = `От ${username} ${when}.`;
+      const ital = `_${escapeMd(headerLine)}_`;
+      const body = `> ${escapeMd(full)}||`;
+      blocks.push(`${ital}\n${body}`);
     }
-    const body = lines.map((s) => `${s}\n[${MSG_SHOW_FULL_BUTTON}]`).join("\n\n");
-    const text = `${header}\n\n${body}`.slice(0, 4000);
+    const text = `${header}\n\n${blocks.join("\n\n")}`.slice(0, 3500);
 
     const kb = new InlineKeyboard();
-    for (const hit of res.hits) {
-      const [chat_id, message_id_str] = hit.id.split(":");
-      kb.text(MSG_SHOW_FULL_BUTTON, `show:${chat_id}:${message_id_str}`).row();
-    }
     kb.text("<-", `pg:${encodeURIComponent(query)}:${pageSize}:${realPage - 1}`).text(MSG_PAGINATION_LABEL(realPage, pages), "noop").text("->", `pg:${encodeURIComponent(query)}:${pageSize}:${realPage + 1}`);
 
     try {
-      await ctx.editMessageText(text, { reply_markup: kb });
+      await ctx.editMessageText(text, { reply_markup: kb, parse_mode: "MarkdownV2" });
     } catch (e) {
       logError((e as Error).message);
     } finally {
