@@ -14,6 +14,8 @@ services:
         condition: service_completed_successfully
       redis:
         condition: service_healthy
+      elasticsearch:
+        condition: service_started
     logging:
       driver: "json-file"
       options:
@@ -26,8 +28,17 @@ services:
     env_file: .env
     restart: unless-stopped
     networks: [ default ]
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=${ELASTIC_XPACK_SECURITY_ENABLED:-false}
+      - ES_JAVA_OPTS=${ES_JAVA_OPTS:-"-Xms512m -Xmx512m"}
     volumes:
       - ./data/elasticsearch:/usr/share/elasticsearch/data
+    healthcheck:
+      test: [ "CMD-SHELL", "curl -fsSL http://localhost:9200 >/dev/null || exit 1" ]
+      interval: 10s
+      timeout: 5s
+      retries: 12
     logging:
       driver: "json-file"
       options:
