@@ -242,7 +242,7 @@ export async function onSearch(ctx: Context) {
   const text = `${header}\n\n${blocks.join("\n\n")}`.slice(0, 3500);
 
   const kb = new InlineKeyboard();
-  kb.text("<-", `pg:${encodeURIComponent(query)}:${pageSize}:${page - 1}`).text(MSG_PAGINATION_LABEL(page, pages), "noop").text("->", `pg:${encodeURIComponent(query)}:${pageSize}:${page + 1}`);
+  kb.text(KB_PG_BACK, `pg:${encodeURIComponent(query)}:${pageSize}:${page - 1}`).text(MSG_PAGINATION_LABEL(page, pages), "noop").text(KB_PG_NEXT, `pg:${encodeURIComponent(query)}:${pageSize}:${page + 1}`);
 
   await ctx.reply(text, { reply_markup: kb, parse_mode: "MarkdownV2" });
 }
@@ -273,13 +273,13 @@ export async function onSearchCallback(ctx: Context) {
       const when = formatDateDMY(hit.doc.date);
       const headerLine = `От ${username} ${when}.`;
       const ital = `_${escapeMd(headerLine)}_`;
-      const body = `> ${escapeMd(full)}||`;
+      const body = `>${escapeMd(full)}||`;
       blocks.push(`${ital}\n${body}`);
     }
     const text = `${header}\n\n${blocks.join("\n\n")}`.slice(0, 3500);
 
     const kb = new InlineKeyboard();
-    kb.text("<-", `pg:${encodeURIComponent(query)}:${pageSize}:${realPage - 1}`).text(MSG_PAGINATION_LABEL(realPage, pages), "noop").text("->", `pg:${encodeURIComponent(query)}:${pageSize}:${realPage + 1}`);
+    kb.text(KB_PG_BACK, `pg:${encodeURIComponent(query)}:${pageSize}:${realPage - 1}`).text(MSG_PAGINATION_LABEL(realPage, pages), "noop").text(KB_PG_NEXT, `pg:${encodeURIComponent(query)}:${pageSize}:${realPage + 1}`);
 
     try {
       await ctx.editMessageText(text, { reply_markup: kb, parse_mode: "MarkdownV2" });
