@@ -196,12 +196,20 @@ export async function onMessage(ctx: Context) {
 
 const escapeMd = (s: string) => telegramifyMarkdown(s, "escape");
 
-function formatDateDMY(dateIso: string): string {
-  const d = new Date(dateIso);
-  const dd = String(d.getDate()).padStart(2, "0");
-  const mm = String(d.getMonth() + 1).padStart(2, "0");
-  const yyyy = d.getFullYear();
-  return `${dd}.${mm}.${yyyy}`;
+export function formatDateDMY(date: string | number | Date): string {
+  const d = typeof date === 'string' || typeof date === 'number'
+    ? new Date(date)
+    : date;
+
+  if (Number.isNaN(d.getTime())) {
+    throw new Error(`Invalid date: ${date}`);
+  }
+
+  return new Intl.DateTimeFormat('ru-RU', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric'
+  }).format(d);
 }
 
 export async function onSearch(ctx: Context) {
