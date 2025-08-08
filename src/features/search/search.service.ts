@@ -65,11 +65,12 @@ export async function indexMessage(doc: IndexedMessage): Promise<void> {
 }
 
 export async function searchMessages(params: SearchParams): Promise<SearchResult> {
-  const { chatId, query, limit = 5 } = params;
+  const { chatId, query, limit = 5, offset = 0 } = params;
   try {
     const res = await client.search({
       index: ELASTIC_INDEX,
       size: Math.min(limit, 25),
+      from: Math.max(0, offset),
       track_total_hits: true,
       query: {
         bool: {
