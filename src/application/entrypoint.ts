@@ -1,9 +1,11 @@
 import { Bot } from 'grammy';
 import { BOT_TOKEN, DATABASE_URL } from './entrypoint.env';
 import { logError, logInfo, logSuccess } from '../shared/logging';
-import { onStart, onNotation, onStats, onChatMemberUpdate, onCallback, onMessage, onSearch, onSearchCallback } from '../telegram/handler';
+import { onStart, onNotation, onStats, onChatMemberUpdate, onSearch } from '../telegram/commands';
+import { onCallback, onSearchCallback } from '../telegram/callbacks';
+import { onMessage } from '../telegram/message.handler';
 import { ensureIndex } from "../features/search/search.service";
-import { startIndexWorker } from "../features/search/index.queue";
+import { startIndexWorker } from "../queue/index.queue";
 
 async function main() {
   if (!BOT_TOKEN) return logError("BOT_TOKEN не задан в .env");
@@ -19,7 +21,7 @@ async function main() {
   bot.on("my_chat_member", onChatMemberUpdate);
   bot.on("callback_query:data", async (ctx, next) => {
     const data = ctx.callbackQuery?.data ?? "";
-    if (data.startsWith("show:")) return onSearchCallback(ctx);
+    if (data.startsWith("pg:")) return onSearchCallback(ctx);
     return onCallback(ctx);
   });
   bot.on("message", onMessage);
