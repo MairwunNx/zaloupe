@@ -5,7 +5,7 @@ import { onStart, onNotation, onStats, onChatMemberUpdate, onSearch } from '../t
 import { onCallback, onSearchCallback } from '../telegram/callbacks';
 import { onMessage } from '../telegram/message.handler';
 import { ensureIndex } from "../features/search/search.service";
-import { startIndexWorker } from "../queue/index.queue";
+import { startIndexWorker, logQueueStats } from "../queue/index.queue";
 
 async function main() {
   if (!BOT_TOKEN) return logError("BOT_TOKEN не задан в .env");
@@ -40,6 +40,12 @@ async function main() {
 
   await ensureIndex();
   startIndexWorker();
+  logSuccess("Worker для индексации запущен");
+  
+  setInterval(async () => {
+    await logQueueStats();
+  }, 5 * 60 * 1000);
+  
   await bot.start();
   logSuccess("Zaloupe бот запущен");
 }
