@@ -1,33 +1,33 @@
-export interface IndexedMessage {
-  chat_id: string;
-  message_id: number;
-  from_id?: string;
-  from_username?: string | null;
-  date: string;
-  text?: string;           // оригинал
-  text_trimmed?: string;   // обрезанный/очищенный
-  entities?: unknown[];
-  attachments?: unknown[];
-  lang?: string;
-  chat_type?: string;
-}
+import { ChatType } from "../../shared/database";
 
-export interface SearchHitDoc extends IndexedMessage {}
-
-export interface SearchHit {
-  id: string;
-  score?: number;
-  doc: SearchHitDoc;
+export interface NewMessage {
+    chat_id: number;
+    message_id: number;
+    from_id?: number;
+    from_username?: string;
+    date: Date;
+    text?: string;
+    chat_type?: ChatType;
 }
 
 export interface SearchParams {
-  chatId: bigint | number | string;
+  chatId: bigint | number;
   query: string;
   limit?: number;
   offset?: number;
 }
 
+export interface SearchResultHit {
+  id: string;
+  rank: number;
+  snippet: string;
+  date: Date;
+  message_id: number;
+  from_username?: string;
+}
+
 export interface SearchResult {
   total: number;
-  hits: SearchHit[];
+  hits: SearchResultHit[];
 }
+
