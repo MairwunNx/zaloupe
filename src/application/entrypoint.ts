@@ -4,7 +4,6 @@ import { logError, logInfo, logSuccess } from '../shared/logging';
 import { onStart, onNotation, onStats, onChatMemberUpdate, onSearch } from '../telegram/commands';
 import { onCallback, onSearchCallback } from '../telegram/callbacks';
 import { onMessage } from '../telegram/message.handler';
-import { ensureIndex } from "../features/search/search.service";
 import { startIndexWorker, logQueueStats } from "../queue/index.queue";
 
 async function main() {
@@ -38,7 +37,6 @@ async function main() {
     })
   );
 
-  await ensureIndex();
   startIndexWorker();
   logSuccess("Worker для индексации запущен");
   
