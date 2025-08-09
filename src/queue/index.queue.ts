@@ -1,7 +1,7 @@
 import { Queue, Worker, JobsOptions } from "bullmq";
 import { getRedis } from "./redis";
 import { indexMessage } from "../features/search/search.service";
-import { IndexedMessage } from "../features/search/search.types";
+import { NewMessage } from "../features/search/search.types";
 import { logError, logSuccess, logInfo } from "../shared/logging";
 
 const connection = getRedis();
@@ -9,7 +9,7 @@ export const INDEX_QUEUE_NAME = "index-messages" as const;
 
 export const indexQueue = new Queue(INDEX_QUEUE_NAME, { connection });
 
-export type IndexJobData = { doc: IndexedMessage };
+export type IndexJobData = { doc: NewMessage };
 
 export function startIndexWorker(concurrency = Number(process.env.INDEX_CONCURRENCY || 4)) {
   const processor = async (job: { data: IndexJobData }) => {
@@ -44,7 +44,7 @@ export function startIndexWorker(concurrency = Number(process.env.INDEX_CONCURRE
   return worker;
 }
 
-export async function enqueueIndex(doc: IndexedMessage) {
+export async function enqueueIndex(doc: NewMessage) {
   const opts: JobsOptions = {
     attempts: Number(process.env.INDEX_MAX_ATTEMPTS || 5),
     backoff: { type: "fixed", delay: Number(process.env.INDEX_BACKOFF_MS || 2000) },
