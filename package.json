@@ -19,7 +19,6 @@
     "typescript": "^5"
   },
   "dependencies": {
-    "@elastic/elasticsearch": "^8.15.1",
     "bullmq": "^5.56.9",
     "dotenv": "^17.2.1",
     "fp-ts": "^2.16.10",
