@@ -1,6 +1,6 @@
 import telegramifyMarkdown from "telegramify-markdown";
 
-export const escapeMd = (s: string) => telegramifyMarkdown(s, "escape");
+export const escapeMd = (s: string) => telegramifyMarkdown(s, "keep");
 
 export function formatDateDMY(date: string | number | Date): string {
   const d = typeof date === "string" || typeof date === "number" ? new Date(date) : date;
