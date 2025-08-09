@@ -30,14 +30,12 @@ export async function onMessage(ctx: Context) {
     logInfo(`Обрабатываю сообщение ${chat.id}:${messageId} от ${msg.from?.username || 'анонима'}`);
     
     await enqueueIndex({
-      chat_id: String(chat.id),
+      chat_id: chat.id,
       message_id: messageId,
-      from_id: msg.from ? String(msg.from.id) : undefined,
-      from_username: msg.from?.username ?? null,
-      date: new Date((msg.date ?? Math.floor(Date.now() / 1000)) * 1000).toISOString(),
+      from_id: msg.from?.id,
+      from_username: msg.from?.username,
+      date: new Date(msg.date * 1000),
       text: msg.text,
-      text_trimmed: trimmed,
-      entities: (msg.entities as any) ?? undefined,
       chat_type: chat.type,
     });
 
