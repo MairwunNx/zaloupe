@@ -104,20 +104,15 @@ export async function onSearch(ctx: Context) {
     const pages = Math.max(1, Math.ceil(res.total / pageSize));
     const token = await createSearchToken(chatId, query);
 
-    const rawHeader = MSG_SEARCH_HEADER(query, res.total);
-    const header = escapeMd(rawHeader);
+    const header = MSG_SEARCH_HEADER(query, res.total);
     const blocks: string[] = [];
     for (const hit of res.hits) {
-      const full = hit.doc.text ?? "";
-      const username = hit.doc.from_username ? `@${hit.doc.from_username}` : "аноним";
-      const when = formatDateDMY(hit.doc.date);
-      const headerLine = `От ${username} ${when}.`;
-      const ital = `_${escapeMd(headerLine)}_`;
-      const body = `>${escapeMd(full)}||`;
-      blocks.push(`${ital}\n${body}`);
+      const username = hit.from_username ? `@${hit.from_username}` : "аноним";
+      const when = formatDateDMY(hit.date);
+      const headerLine = `От ${username} ${when}:`;
+      blocks.push(`${headerLine}\n>${hit.snippet}||`);
     }
-    let composed = `${header}\n\n${blocks.join("\n\n")}`;
-    const text = composed.slice(0, 3900);
+    const text = escapeMd(`${header}\n\n${blocks.join("\n\n")}`).slice(0, 4096);
 
     const kb = kbPagination(token, page, pageSize, pages);
 
